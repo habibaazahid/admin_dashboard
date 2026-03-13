@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PulseBoard — Analytics Platform</title>
+<meta name="description" content="Real-time analytics · dashboard.habibazahid.com"/>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230c1220'/><text y='24' x='4' font-size='22'>⬡</text></svg>"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* PULSEBOARD · dashboard.habibazahid.com
+   Design: Deep obsidian command center
+   Bloomberg Terminal × Linear × Raycast */
+:root{
+  --bg0:#070d1a;--bg1:#0b1222;--bg2:#0f1830;
+  --s1:#111f33;--s2:#162540;--s3:#1a2b4a;
+  --b0:rgba(96,165,250,.07);--b1:rgba(96,165,250,.13);
+  --b2:rgba(96,165,250,.25);--b3:rgba(96,165,250,.45);
+  --sky:#60a5fa;--ice:#93c5fd;
+  --cyan:#22d3ee;--teal:#2dd4bf;
+  --em:#c084fc;--violet:#a78bfa;
+  --rose:#fb7185;--red:#f87171;
+  --amber:#fbbf24;--gold:#f59e0b;
+  --mint:#34d399;--green:#10b981;
+  --tx0:#eef2ff;--tx1:#8899b0;--tx2:#3d5068;--tx3:#1a2540;
+  --fh:'Plus Jakarta Sans',sans-serif;
+  --fm:'JetBrains Mono',monospace;
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+[data-theme=light]{
+  --bg0:#f0f4ff;--bg1:#e6eeff;--bg2:#fff;
+  --s1:#fff;--s2:#f4f7ff;--s3:#edf1ff;
+  --b0:rgba(59,130,246,.07);--b1:rgba(59,130,246,.13);--b2:rgba(59,130,246,.24);
+  --sky:#2563eb;--ice:#3b82f6;--cyan:#0891b2;--teal:#0d9488;
+  --em:#7c3aed;--violet:#6d28d9;
+  --rose:#e11d48;--red:#dc2626;--amber:#d97706;
+  --mint:#059669;--green:#047857;
+  --tx0:#0d1424;--tx1:#475569;--tx2:#94a3b8;--tx3:#cbd5e1;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--fh);background:var(--bg0);color:var(--tx0);display:flex;flex-direction:column;transition:background .4s,color .3s}
+button,input{font-family:var(--fh);outline:none;border:none;cursor:pointer}
+::selection{background:rgba(96,165,250,.25)}
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-thumb{background:var(--b1);border-radius:3px}
+
+/* TICKER */
+#ticker{height:32px;background:var(--s1);border-bottom:1px solid var(--b0);display:flex;align-items:center;overflow:hidden;position:relative;flex-shrink:0}
+#ticker::before,#ticker::after{content:'';position:absolute;top:0;bottom:0;width:70px;z-index:2;pointer-events:none}
+#ticker::before{left:0;background:linear-gradient(90deg,var(--s1),transparent)}
+#ticker::after{right:0;background:linear-gradient(-90deg,var(--s1),transparent)}
+.tscroll{display:flex;animation:tickmove 55s linear infinite;width:max-content}
+.tscroll:hover{animation-play-state:paused}
+.ti{display:flex;align-items:center;gap:5px;padding:0 16px;border-right:1px solid var(--b0);font-family:var(--fm);font-size:10.5px;height:32px;white-space:nowrap}
+.ti-s{color:var(--tx0);font-weight:600;font-size:11px}
+.ti-v{color:var(--tx1)}
+.ti-u{color:var(--mint)}
+.ti-d{color:var(--rose)}
+@keyframes tickmove{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+/* LAYOUT */
+#wrap{display:flex;height:calc(100vh - 32px);overflow:hidden}
+
+/* SIDEBAR */
+#sb{width:228px;flex-shrink:0;background:var(--bg1);border-right:1px solid var(--b0);display:flex;flex-direction:column;transition:width .3s var(--ease);overflow:hidden}
+#sb.mini{width:56px}
+.sb-top{height:56px;padding:0 13px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--b0);flex-shrink:0;overflow:hidden}
+.sb-mark{width:28px;height:28px;border-radius:7px;flex-shrink:0;background:linear-gradient(135deg,#60a5fa,#c084fc);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#fff;box-shadow:0 0 14px rgba(96,165,250,.35)}
+.sb-nm{font-size:13.5px;font-weight:800;color:var(--tx0);letter-spacing:-.2px;white-space:nowrap}
+.sb-dm{font-family:var(--fm);font-size:9px;color:var(--tx2);white-space:nowrap;letter-spacing:.08em}
+.sb-nav{flex:1;padding:8px 5px;overflow-y:auto;display:flex;flex-direction:column;gap:1px}
+.sb-grp{font-family:var(--fm);font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--tx2);padding:10px 8px 5px;white-space:nowrap;overflow:hidden;transition:opacity .2s}
+#sb.mini .sb-grp{opacity:0;pointer-events:none}
+.nb{display:flex;align-items:center;gap:8px;padding:8px 8px;border-radius:8px;background:transparent;color:var(--tx1);font-size:13px;font-weight:500;width:100%;text-align:left;transition:all .15s;border:1px solid transparent;white-space:nowrap;overflow:hidden}
+.nb:hover{background:rgba(96,165,250,.07);color:var(--tx0)}
+.nb.on{background:linear-gradient(135deg,rgba(96,165,250,.15),rgba(192,132,252,.1));border-color:var(--b1);color:var(--sky);font-weight:600}
+.nb.on .ni2{filter:drop-shadow(0 0 5px currentColor)}
+.ni2{font-size:15px;width:20px;text-align:center;flex-shrink:0;line-height:1}
+.nl{flex:1;overflow:hidden}
+.nbadge{font-family:var(--fm);font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(96,165,250,.14);color:var(--sky);border:1px solid var(--b1);flex-shrink:0}
+.ndot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.ndot.live{background:var(--mint);box-shadow:0 0 8px var(--mint);animation:lp 1.8s ease-in-out infinite}
+@keyframes lp{0%,100%{box-shadow:0 0 0 0 rgba(52,211,153,.6)}50%{box-shadow:0 0 0 6px rgba(52,211,153,0)}}
+.sb-foot{padding:7px 5px;border-top:1px solid var(--b0);flex-shrink:0;display:flex;flex-direction:column;gap:5px}
+.sb-user{display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;border:1px solid var(--b0);overflow:hidden;cursor:pointer;transition:border-color .15s}
+.sb-user:hover{border-color:var(--b2)}
+.sb-av{width:26px;height:26px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,var(--rose),var(--em));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10px;color:#fff}
+.sb-un{font-size:12px;font-weight:700;color:var(--tx0);white-space:nowrap}
+.sb-ur{font-family:var(--fm);font-size:9px;color:var(--cyan);white-space:nowrap}
+.clp{display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;border:1px solid var(--b0);background:transparent;color:var(--tx1);font-size:12px;font-weight:500;transition:all .15s;width:100%;white-space:nowrap;overflow:hidden}
+.clp:hover{border-color:var(--b2);color:var(--tx0)}
+.ca{font-size:11px;flex-shrink:0;transition:transform .3s var(--ease)}
+#sb.mini .ca{transform:rotate(180deg)}
+
+/* MAIN */
+#main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+
+/* TOPBAR */
+#topbar{height:56px;background:var(--bg1);border-bottom:1px solid var(--b0);display:flex;align-items:center;gap:10px;padding:0 18px;flex-shrink:0}
+#ptitle{font-size:16px;font-weight:800;letter-spacing:-.4px;color:var(--tx0);flex:1}
+.tbsearch{display:flex;align-items:center;gap:7px;background:var(--s1);border:1px solid var(--b0);border-radius:8px;padding:7px 11px;width:190px;transition:border-color .2s}
+.tbsearch:focus-within{border-color:var(--b2)}
+.tbsearch input{background:transparent;color:var(--tx0);font-size:12.5px;flex:1}
+.tbsearch input::placeholder{color:var(--tx2)}
+#livebadge{display:flex;align-items:center;gap:5px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.22);border-radius:20px;padding:5px 11px;font-family:var(--fm);font-size:10px;color:var(--mint);letter-spacing:.12em}
+.lp2{width:6px;height:6px;border-radius:50%;background:var(--mint);animation:lp 1.8s ease-in-out infinite}
+#clkdisplay{font-family:var(--fm);font-size:11px;color:var(--tx1);letter-spacing:.04em;min-width:70px}
+.tbibtn{width:33px;height:33px;border-radius:8px;background:transparent;border:1px solid var(--b0);color:var(--tx1);font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .15s;position:relative}
+.tbibtn:hover{border-color:var(--b2);color:var(--tx0)}
+.nbdg{position:absolute;top:-4px;right:-4px;width:15px;height:15px;border-radius:50%;background:var(--rose);font-family:var(--fm);font-size:8px;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+.btnew{padding:7px 15px;border-radius:8px;background:linear-gradient(135deg,var(--sky),var(--em));color:#fff;font-size:12.5px;font-weight:700;transition:all .2s;white-space:nowrap}
+.btnew:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(96,165,250,.3)}
+
+/* CONTENT */
+#content{flex:1;overflow-y:auto;padding:18px 20px 44px}
+
+/* PAGE TRANSITIONS */
+.page{display:none}
+.page.on{display:block;animation:pgin .28s var(--ease)}
+@keyframes pgin{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+
+/* GRID */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:13px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:13px}
+.gm{display:grid;grid-template-columns:1fr 290px;gap:13px}
+.gap{margin-bottom:13px}
+@media(max-width:1200px){.g4{grid-template-columns:1fr 1fr}.gm{grid-template-columns:1fr 260px}}
+@media(max-width:960px){.g3{grid-template-columns:1fr 1fr}.gm{grid-template-columns:1fr}}
+@media(max-width:680px){.g2{grid-template-columns:1fr}.g3{grid-template-columns:1fr}.g4{grid-template-columns:1fr}}
+
+/* CARD */
+.card{background:var(--s1);border:1px solid var(--b0);border-radius:12px;padding:17px;transition:border-color .25s}
+.card:hover{border-color:var(--b1)}
+.ch{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:13px}
+.ct{font-size:13.5px;font-weight:700;color:var(--tx0);margin-bottom:2px}
+.cs{font-family:var(--fm);font-size:9.5px;color:var(--tx2);letter-spacing:.1em;text-transform:uppercase}
+
+/* METRIC CARD */
+.mc{background:var(--s1);border:1px solid var(--b0);border-radius:12px;padding:17px;position:relative;overflow:hidden;transition:border-color .25s,transform .25s var(--ease);cursor:default}
+.mc:hover{transform:translateY(-2px);border-color:var(--b1)}
+.mc-glow{position:absolute;top:-36px;right:-36px;width:110px;height:110px;border-radius:50%;pointer-events:none;opacity:.13}
+.mctop{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+.mclbl{font-family:var(--fm);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--tx1)}
+.mcico{font-size:18px;line-height:1}
+.mcval{font-size:clamp(1.45rem,2.2vw,2rem);font-weight:800;letter-spacing:-1.5px;color:var(--tx0);line-height:1;margin-bottom:9px}
+.mcbot{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.delta{display:inline-flex;align-items:center;gap:4px;font-family:var(--fm);font-size:10px;font-weight:600;padding:3px 7px;border-radius:5px}
+.up{background:rgba(52,211,153,.12);color:var(--mint);border:1px solid rgba(52,211,153,.2)}
+.dn{background:rgba(251,113,133,.12);color:var(--rose);border:1px solid rgba(251,113,133,.2)}
+.mcnote{font-size:11px;color:var(--tx2)}
+.spk{height:34px;margin-top:11px}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-family:var(--fm);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--tx2);padding:9px 13px;text-align:left;border-bottom:1px solid var(--b0);white-space:nowrap;cursor:pointer;user-select:none}
+.tbl th:hover{color:var(--tx1)}
+.tbl td{padding:10px 13px;font-size:12.5px;color:var(--tx1);border-bottom:1px solid rgba(96,165,250,.03);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:rgba(96,165,250,.04)}
+.av{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;color:#fff}
+.uc{display:flex;align-items:center;gap:8px}
+.un{font-size:13px;font-weight:600;color:var(--tx0)}
+.ue{font-family:var(--fm);font-size:10px;color:var(--tx2)}
+.tag{font-family:var(--fm);font-size:10px;padding:2px 8px;border-radius:4px;display:inline-block;letter-spacing:.04em}
+.sdot{display:inline-flex;align-items:center;gap:5px;font-family:var(--fm);font-size:11px}
+.dot{width:5px;height:5px;border-radius:50%;display:inline-block}
+.pbar{height:3px;border-radius:2px;background:var(--b0);overflow:hidden;margin-top:3px;width:70px}
+.pfill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--sky),var(--teal))}
+
+/* FEED */
+.fi{display:flex;gap:9px;padding:9px 0;border-bottom:1px solid rgba(96,165,250,.04);align-items:flex-start}
+.fi:last-child{border-bottom:none}
+.fic{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.fit{font-size:12.5px;color:var(--tx0);line-height:1.45;margin-bottom:2px}
+.fim{font-family:var(--fm);font-size:10px;color:var(--tx2)}
+
+/* STAT ROW */
+.sr{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(96,165,250,.04)}
+.sr:last-child{border-bottom:none}
+.srn{font-size:12.5px;color:var(--tx1);display:flex;align-items:center;gap:6px}
+.srv{font-family:var(--fm);font-size:12.5px;font-weight:600;color:var(--tx0)}
+
+/* PAGINATION */
+.pg{display:flex;align-items:center;gap:5px;padding:11px 13px;border-top:1px solid var(--b0)}
+.pgi{flex:1;font-family:var(--fm);font-size:10px;color:var(--tx2)}
+.pb{width:27px;height:27px;border-radius:6px;border:1px solid var(--b0);background:transparent;color:var(--tx1);font-family:var(--fm);font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s}
+.pb:hover,.pb.on{border-color:var(--b2);color:var(--sky);background:rgba(96,165,250,.1)}
+
+/* FILTERS */
+.filt{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-bottom:13px}
+.fb{padding:6px 12px;border-radius:7px;border:1px solid var(--b0);background:transparent;color:var(--tx1);font-family:var(--fm);font-size:10.5px;cursor:pointer;transition:all .15s;letter-spacing:.04em}
+.fb:hover,.fb.on{border-color:var(--b2);color:var(--sky);background:rgba(96,165,250,.1)}
+.sbi{display:flex;align-items:center;gap:7px;background:var(--s1);border:1px solid var(--b0);border-radius:8px;padding:7px 11px;transition:border-color .2s;flex:1;min-width:160px}
+.sbi:focus-within{border-color:var(--b2)}
+.sbi input{background:transparent;color:var(--tx0);font-size:12.5px;width:100%}
+.sbi input::placeholder{color:var(--tx2)}
+
+/* ALERTS */
+.al{display:flex;gap:11px;padding:13px;border-radius:10px;border:1px solid;margin-bottom:10px;align-items:flex-start}
+.al.danger{background:rgba(248,113,113,.06);border-color:rgba(248,113,113,.2)}
+.al.warn{background:rgba(251,191,36,.06);border-color:rgba(251,191,36,.2)}
+.al.info{background:rgba(96,165,250,.06);border-color:rgba(96,165,250,.2)}
+.al.success{background:rgba(52,211,153,.06);border-color:rgba(52,211,153,.2)}
+.ali{font-size:17px;flex-shrink:0;margin-top:1px}
+.alt{font-size:13px;font-weight:700;color:var(--tx0);margin-bottom:3px}
+.alm{font-size:11.5px;color:var(--tx1);line-height:1.6}
+.altime{font-family:var(--fm);font-size:10px;color:var(--tx2);margin-top:4px}
+
+/* SETTINGS */
+.stit{font-size:14px;font-weight:700;color:var(--tx0);padding-bottom:9px;border-bottom:1px solid var(--b0);margin-bottom:11px}
+.srow{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(96,165,250,.04)}
+.srow:last-child{border-bottom:none}
+.slbl{font-size:12.5px;font-weight:600;color:var(--tx0)}
+.sdesc{font-size:11px;color:var(--tx2);margin-top:2px}
+.tog{width:38px;height:21px;border-radius:11px;background:var(--s2);border:1px solid var(--b1);position:relative;cursor:pointer;transition:all .26s var(--ease);flex-shrink:0}
+.tog.on{background:var(--sky);border-color:var(--sky)}
+.tog::after{content:'';position:absolute;width:15px;height:15px;border-radius:50%;background:#fff;top:2px;left:2px;transition:transform .26s var(--ease);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.tog.on::after{transform:translateX(17px)}
+.sinp{background:var(--s2);border:1px solid var(--b1);border-radius:7px;padding:8px 11px;color:var(--tx0);font-size:12.5px;transition:border-color .2s;font-family:var(--fh)}
+.sinp:focus{border-color:var(--b2)}
+.btnp{padding:8px 16px;border-radius:7px;background:linear-gradient(135deg,var(--sky),var(--em));color:#fff;font-size:12.5px;font-weight:700;border:none;transition:all .2s;cursor:pointer}
+.btnp:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(96,165,250,.3)}
+.btng{padding:8px 16px;border-radius:7px;border:1px solid var(--b1);background:transparent;color:var(--tx1);font-size:12.5px;font-weight:500;cursor:pointer;transition:all .15s}
+.btng:hover{border-color:var(--b2);color:var(--tx0)}
+.btnd{padding:8px 16px;border-radius:7px;border:1px solid rgba(248,113,113,.3);background:rgba(248,113,113,.08);color:var(--rose);font-size:12.5px;font-weight:600;cursor:pointer;transition:all .15s}
+
+/* CRYPTO */
+.ci{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid rgba(96,165,250,.04)}
+.ci:last-child{border-bottom:none}
+.cil{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-weight:700;font-size:13px;flex-shrink:0}
+.cin{font-size:13px;font-weight:600;color:var(--tx0)}
+.cis{font-family:var(--fm);font-size:10px;color:var(--tx2)}
+.cip{font-family:var(--fm);font-size:13px;font-weight:600;color:var(--tx0);text-align:right}
+.cic{font-family:var(--fm);font-size:11px;text-align:right}
+
+/* WEATHER */
+.wds{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.wd{background:var(--s2);border-radius:8px;padding:9px 11px}
+.wdl{font-family:var(--fm);font-size:9px;color:var(--tx2);letter-spacing:.12em;text-transform:uppercase;margin-bottom:2px}
+.wdv{font-size:14px;font-weight:700;color:var(--tx0)}
+
+/* WORLD TIME */
+.wt{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(96,165,250,.04)}
+.wt:last-child{border-bottom:none}
+.wtc{font-size:12.5px;color:var(--tx1);display:flex;align-items:center;gap:6px}
+.wtt{font-family:var(--fm);font-size:14px;font-weight:600;color:var(--tx0)}
+.wtd{font-family:var(--fm);font-size:10px;color:var(--tx2)}
+
+/* NEWS */
+.ni{padding:11px 0;border-bottom:1px solid rgba(96,165,250,.04);cursor:pointer;transition:transform .15s}
+.ni:hover{transform:translateX(4px)}
+.ni:last-child{border-bottom:none}
+.nis{font-family:var(--fm);font-size:9.5px;color:var(--sky);letter-spacing:.12em;text-transform:uppercase;margin-bottom:4px}
+.nit{font-size:12.5px;color:var(--tx0);line-height:1.55;font-weight:500;margin-bottom:3px}
+.nitm{font-family:var(--fm);font-size:10px;color:var(--tx2)}
+
+/* SKELETON */
+.sk{background:linear-gradient(90deg,var(--s1) 25%,var(--s2) 50%,var(--s1) 75%);background-size:200% 100%;animation:sk 1.4s ease-in-out infinite;border-radius:5px}
+@keyframes sk{0%{background-position:200%}100%{background-position:-200%}}
+
+/* LEGEND */
+.leg{display:flex;gap:11px;flex-wrap:wrap;margin-top:7px}
+.li{display:flex;align-items:center;gap:4px;font-family:var(--fm);font-size:10px;color:var(--tx1)}
+.ld{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+
+/* MODAL */
+.mwrap{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .28s}
+.mwrap.open{opacity:1;pointer-events:all}
+.modal{background:var(--s1);border:1px solid var(--b2);border-radius:14px;padding:24px;max-width:450px;width:90%;transform:scale(.94) translateY(14px);transition:all .28s var(--ease)}
+.mwrap.open .modal{transform:none}
+.mt{font-size:16px;font-weight:800;color:var(--tx0);margin-bottom:4px}
+.ms{font-size:12px;color:var(--tx2);margin-bottom:18px}
+.ml{font-family:var(--fm);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--tx2);margin-bottom:5px;margin-top:11px}
+.mi{width:100%;background:var(--s2);border:1px solid var(--b1);border-radius:8px;padding:9px 12px;color:var(--tx0);font-size:13px;transition:border-color .2s;font-family:var(--fh)}
+.mi:focus{border-color:var(--b2)}
+.mf{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+</style>
+</head>
+<body>
+
+<!-- TICKER BAR -->
+<div id="ticker"><div class="tscroll" id="ticker-inner"></div></div>
+
+<div id="wrap">
+<!-- ── SIDEBAR ── -->
+<aside id="sb">
+  <div class="sb-top">
+    <div class="sb-mark">P</div>
+    <div><div class="sb-nm">PulseBoard</div><div class="sb-dm">dashboard.habibazahid.com</div></div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-grp">MAIN</div>
+    <button class="nb on" data-page="overview"><span class="ni2">⬡</span><span class="nl">Overview</span><span class="ndot live"></span></button>
+    <button class="nb" data-page="analytics"><span class="ni2">📈</span><span class="nl">Analytics</span></button>
+    <button class="nb" data-page="users"><span class="ni2">👥</span><span class="nl">Users</span><span class="nbadge">24</span></button>
+    <button class="nb" data-page="revenue"><span class="ni2">💰</span><span class="nl">Revenue</span></button>
+    <div class="sb-grp">LIVE APIs</div>
+    <button class="nb" data-page="crypto"><span class="ni2">₿</span><span class="nl">Crypto Live</span><span class="ndot live"></span></button>
+    <button class="nb" data-page="weather"><span class="ni2">🌤</span><span class="nl">Weather</span></button>
+    <button class="nb" data-page="news"><span class="ni2">📰</span><span class="nl">Tech News</span><span class="nbadge">New</span></button>
+    <button class="nb" data-page="worldtime"><span class="ni2">🌍</span><span class="nl">World Clocks</span></button>
+    <div class="sb-grp">SYSTEM</div>
+    <button class="nb" data-page="alerts"><span class="ni2">🔔</span><span class="nl">Alerts</span><span class="nbadge">5</span></button>
+    <button class="nb" data-page="settings"><span class="ni2">⚙️</span><span class="nl">Settings</span></button>
+  </nav>
+  <div class="sb-foot">
+    <div class="sb-user">
+      <div class="sb-av">HZ</div>
+      <div><div class="sb-un">Habiba Zahid</div><div class="sb-ur">Administrator</div></div>
+    </div>
+    <button class="clp" id="clpbtn"><span class="ca">◀</span><span>Collapse</span></button>
+  </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<div id="main">
+  <div id="topbar">
+    <div id="ptitle">Overview</div>
+    <div class="tbsearch"><span style="color:var(--tx2);font-size:13px">⌕</span><input type="text" placeholder="Search… (Ctrl+K)" id="gsrch"/></div>
+    <div id="livebadge"><span class="lp2"></span>LIVE</div>
+    <div id="clkdisplay">--:--:--</div>
+    <button class="tbibtn" id="nbtn">🔔<span class="nbdg">5</span></button>
+    <button class="tbibtn" id="thbtn" title="Toggle theme">🌙</button>
+    <button class="btnew" onclick="openModal()">＋ New Report</button>
+  </div>
+
+  <div id="content">
+
+    <!-- OVERVIEW -->
+    <div class="page on" id="page-overview">
+      <div class="g4 gap">
+        <div class="mc">
+          <div class="mc-glow" style="background:radial-gradient(var(--sky),transparent)"></div>
+          <div class="mctop"><span class="mclbl">Total Revenue</span><span class="mcico">💰</span></div>
+          <div class="mcval" id="v-rev">$0</div>
+          <div class="mcbot"><span class="delta up" id="d-rev">↑ 0%</span><span class="mcnote">vs last month</span></div>
+          <div class="spk"><canvas id="sp-rev"></canvas></div>
+        </div>
+        <div class="mc">
+          <div class="mc-glow" style="background:radial-gradient(var(--mint),transparent)"></div>
+          <div class="mctop"><span class="mclbl">Active Users</span><span class="mcico">👥</span></div>
+          <div class="mcval" id="v-usr">0</div>
+          <div class="mcbot"><span class="delta up" id="d-usr">↑ 0%</span><span class="mcnote">vs last month</span></div>
+          <div class="spk"><canvas id="sp-usr"></canvas></div>
+        </div>
+        <div class="mc">
+          <div class="mc-glow" style="background:radial-gradient(var(--em),transparent)"></div>
+          <div class="mctop"><span class="mclbl">Conversions</span><span class="mcico">🎯</span></div>
+          <div class="mcval" id="v-con">0</div>
+          <div class="mcbot"><span class="delta up" id="d-con">↑ 0%</span><span class="mcnote">vs last month</span></div>
+          <div class="spk"><canvas id="sp-con"></canvas></div>
+        </div>
+        <div class="mc">
+          <div class="mc-glow" style="background:radial-gradient(var(--cyan),transparent)"></div>
+          <div class="mctop"><span class="mclbl">Uptime</span><span class="mcico">🖥</span></div>
+          <div class="mcval">99.98%</div>
+          <div class="mcbot"><span class="delta up">↑ Healthy</span><span class="mcnote">All systems</span></div>
+          <div class="spk"><canvas id="sp-upt"></canvas></div>
+        </div>
+      </div>
+      <div class="gm gap">
+        <div class="card">
+          <div class="ch">
+            <div><div class="ct">Revenue Overview</div><div class="cs">12-month · live data</div></div>
+            <div style="display:flex;gap:5px" id="rfilt">
+              <button class="fb on" data-rf="12">12M</button>
+              <button class="fb" data-rf="6">6M</button>
+              <button class="fb" data-rf="3">3M</button>
+            </div>
+          </div>
+          <div style="height:200px"><canvas id="c-rev"></canvas></div>
+          <div class="leg">
+            <div class="li"><div class="ld" style="background:#60a5fa"></div>Revenue</div>
+            <div class="li"><div class="ld" style="background:#34d399"></div>Profit</div>
+            <div class="li"><div class="ld" style="background:#fb7185;opacity:.7"></div>Expenses</div>
+          </div>
+        </div>
+        <div class="card" style="overflow-y:auto;max-height:310px">
+          <div class="ch">
+            <div><div class="ct">Live Feed</div><div class="cs">real-time events</div></div>
+            <span class="tag" style="background:rgba(52,211,153,.1);color:var(--mint);border:1px solid rgba(52,211,153,.2)">● LIVE</span>
+          </div>
+          <div id="feed"></div>
+        </div>
+      </div>
+      <div class="g3">
+        <div class="card">
+          <div class="ct" style="margin-bottom:3px">Traffic Sources</div>
+          <div class="cs" style="margin-bottom:13px">Channel breakdown</div>
+          <div style="height:165px"><canvas id="c-donut"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="ct" style="margin-bottom:3px">Weekly Visitors</div>
+          <div class="cs" style="margin-bottom:13px">This week vs last</div>
+          <div style="height:165px"><canvas id="c-bars"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="ct" style="margin-bottom:3px">System Pulse</div>
+          <div class="cs" style="margin-bottom:13px">Live server metrics</div>
+          <div id="sysstats"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ANALYTICS -->
+    <div class="page" id="page-analytics">
+      <div class="g2 gap">
+        <div class="card"><div class="ct">Revenue Trend</div><div class="cs" style="margin-bottom:13px">12-month</div><div style="height:230px"><canvas id="c-trend"></canvas></div></div>
+        <div class="card"><div class="ct">Traffic Analysis</div><div class="cs" style="margin-bottom:13px">Visits · Unique</div><div style="height:230px"><canvas id="c-traffic"></canvas></div></div>
+      </div>
+      <div class="g2">
+        <div class="card"><div class="ct">Conversion Funnel</div><div class="cs" style="margin-bottom:13px">Visitor → Customer</div><div style="height:200px"><canvas id="c-funnel"></canvas></div></div>
+        <div class="card"><div class="ct">Device Share</div><div class="cs" style="margin-bottom:13px">Platform distribution</div><div style="height:200px"><canvas id="c-device"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- USERS -->
+    <div class="page" id="page-users">
+      <div class="filt">
+        <div class="sbi"><span style="color:var(--tx2);font-size:13px">⌕</span><input type="text" placeholder="Search by name or email…" id="usrsrch"/></div>
+        <button class="fb on" data-uf="all">All</button>
+        <button class="fb" data-uf="active">Active</button>
+        <button class="fb" data-uf="inactive">Inactive</button>
+        <button class="fb" data-uf="pending">Pending</button>
+        <button class="btnp" onclick="openModal()" style="margin-left:auto">＋ Add User</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr><th>USER</th><th>ROLE</th><th>STATUS</th><th>REVENUE</th><th>ACTIVITY</th><th>JOINED</th><th>ACTIONS</th></tr></thead>
+            <tbody id="utbody"></tbody>
+          </table>
+        </div>
+        <div class="pg"><div class="pgi" id="pgi">—</div><button class="pb on">1</button><button class="pb">2</button><button class="pb">3</button><button class="pb">›</button></div>
+      </div>
+    </div>
+
+    <!-- REVENUE -->
+    <div class="page" id="page-revenue">
+      <div class="g3 gap">
+        <div class="mc"><div class="mctop"><span class="mclbl">MRR</span><span class="mcico">📈</span></div><div class="mcval">$91,200</div><div class="mcbot"><span class="delta up">↑ 14.2%</span></div></div>
+        <div class="mc"><div class="mctop"><span class="mclbl">ARR</span><span class="mcico">🏆</span></div><div class="mcval">$1.09M</div><div class="mcbot"><span class="delta up">↑ 14.2%</span></div></div>
+        <div class="mc"><div class="mctop"><span class="mclbl">ARPU</span><span class="mcico">💎</span></div><div class="mcval">$220</div><div class="mcbot"><span class="delta up">↑ 5.3%</span></div></div>
+      </div>
+      <div class="card gap"><div class="ct">Revenue · Expenses · Profit</div><div class="cs" style="margin-bottom:13px">Full year</div><div style="height:250px"><canvas id="c-rev2"></canvas></div></div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:13px 17px;border-bottom:1px solid var(--b0)"><div class="ct">Monthly Breakdown</div></div>
+        <div style="overflow-x:auto"><table class="tbl" id="revtbl"></table></div>
+      </div>
+    </div>
+
+    <!-- CRYPTO -->
+    <div class="page" id="page-crypto">
+      <div class="g2 gap">
+        <div class="card">
+          <div class="ch"><div><div class="ct">Live Prices</div><div class="cs">CoinGecko API · 30s refresh</div></div><span class="tag" style="background:rgba(52,211,153,.1);color:var(--mint);border:1px solid rgba(52,211,153,.2)">● LIVE</span></div>
+          <div id="clist"><div class="sk" style="height:13px;margin-bottom:8px;width:55%"></div><div class="sk" style="height:28px;margin-bottom:12px"></div><div class="sk" style="height:13px;margin-bottom:8px;width:65%"></div><div class="sk" style="height:28px"></div></div>
+        </div>
+        <div class="card"><div class="ct">Bitcoin · 7-Day</div><div class="cs" style="margin-bottom:13px">USD price history</div><div style="height:210px"><canvas id="c-btc"></canvas></div></div>
+      </div>
+      <div class="card"><div class="ct">24h Change</div><div class="cs" style="margin-bottom:13px">% gain / loss per coin</div><div style="height:180px"><canvas id="c-cbar"></canvas></div></div>
+    </div>
+
+    <!-- WEATHER -->
+    <div class="page" id="page-weather">
+      <div class="g2 gap">
+        <div class="card">
+          <div class="ct">Current Conditions</div>
+          <div class="cs" id="wloc" style="margin-bottom:13px">Fetching…</div>
+          <div id="wmain"><div class="sk" style="height:48px;margin-bottom:11px;width:50%"></div><div class="sk" style="height:13px;width:65%"></div></div>
+        </div>
+        <div class="card"><div class="ct">5-Day Forecast</div><div class="cs" style="margin-bottom:13px">High / Low · Open-Meteo API</div><div style="height:195px"><canvas id="c-fcast"></canvas></div></div>
+      </div>
+      <div class="card"><div class="ct" style="margin-bottom:3px">World Clocks</div><div class="cs" style="margin-bottom:13px">Live · 6 major cities</div><div class="g3" id="wclocks"></div></div>
+    </div>
+
+    <!-- NEWS -->
+    <div class="page" id="page-news">
+      <div class="g2">
+        <div class="card"><div class="ct">Tech Headlines</div><div class="cs" style="margin-bottom:13px">RSS · TechCrunch + fallback</div><div id="nlist"><div class="sk" style="height:12px;margin-bottom:7px;width:38%"></div><div class="sk" style="height:34px;margin-bottom:11px"></div><div class="sk" style="height:12px;margin-bottom:7px;width:48%"></div><div class="sk" style="height:34px"></div></div></div>
+        <div class="card"><div class="ct">Trending in Dev</div><div class="cs" style="margin-bottom:13px">Most discussed this week</div><div id="tlist"></div></div>
+      </div>
+    </div>
+
+    <!-- WORLD TIME -->
+    <div class="page" id="page-worldtime">
+      <div class="g2">
+        <div class="card"><div class="ct">Live World Clocks</div><div class="cs" style="margin-bottom:13px">Updates every second</div><div id="wtlist"></div></div>
+        <div class="card"><div class="ct">UTC Offset Chart</div><div class="cs" style="margin-bottom:13px">Time zone reference</div><div style="height:275px"><canvas id="c-tz"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- ALERTS -->
+    <div class="page" id="page-alerts">
+      <div class="g2">
+        <div id="alist"></div>
+        <div class="card">
+          <div class="ct">Distribution</div><div class="cs" style="margin-bottom:13px">By severity</div>
+          <div style="height:190px"><canvas id="c-alrt"></canvas></div>
+          <div style="margin-top:13px">
+            <div class="sr"><span class="srn">🔴 Critical</span><span class="srv" style="color:var(--rose)">2</span></div>
+            <div class="sr"><span class="srn">🟡 Warning</span><span class="srv" style="color:var(--amber)">1</span></div>
+            <div class="sr"><span class="srn">🔵 Info</span><span class="srv" style="color:var(--sky)">2</span></div>
+            <div class="sr"><span class="srn">🟢 Resolved</span><span class="srv" style="color:var(--mint)">3</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page" id="page-settings">
+      <div class="g2">
+        <div class="card">
+          <div class="stit">Appearance</div>
+          <div class="srow"><div><div class="slbl">Dark Mode</div><div class="sdesc">Dark or light theme</div></div><div class="tog on" id="dtog" onclick="document.getElementById('thbtn').click()"></div></div>
+          <div class="srow"><div><div class="slbl">Auto-refresh</div><div class="sdesc">Update live data every 30s</div></div><div class="tog on"></div></div>
+          <div class="srow"><div><div class="slbl">Live Ticker</div><div class="sdesc">Scrolling market ticker bar</div></div><div class="tog on"></div></div>
+          <div class="srow"><div><div class="slbl">Compact Density</div><div class="sdesc">Tighter spacing</div></div><div class="tog"></div></div>
+          <div class="srow"><div><div class="slbl">Animations</div><div class="sdesc">Page transitions</div></div><div class="tog on"></div></div>
+          <div class="srow"><div><div class="slbl">Sound Alerts</div><div class="sdesc">Audio on critical events</div></div><div class="tog"></div></div>
+          <div class="stit" style="margin-top:18px">Your Subdomains</div>
+          <div class="srow"><div><div class="slbl">Root Domain</div></div><code style="font-family:var(--fm);font-size:11px;color:var(--cyan)">habibazahid.com</code></div>
+          <div class="srow"><div><div class="slbl">Dashboard (this)</div></div><code style="font-family:var(--fm);font-size:11px;color:var(--cyan)">dashboard.habibazahid.com</code></div>
+          <div class="srow"><div><div class="slbl">Portfolio</div></div><code style="font-family:var(--fm);font-size:11px;color:var(--cyan)">myportfolio.habibazahid.com</code></div>
+          <div class="srow"><div><div class="slbl">Blog (future)</div></div><code style="font-family:var(--fm);font-size:11px;color:var(--tx2)">blog.habibazahid.com</code></div>
+          <div class="srow"><div><div class="slbl">API (future)</div></div><code style="font-family:var(--fm);font-size:11px;color:var(--tx2)">api.habibazahid.com</code></div>
+        </div>
+        <div class="card">
+          <div class="stit">Profile</div>
+          <div style="display:flex;flex-direction:column;gap:11px">
+            <div><div class="ml" style="margin-top:0">Full Name</div><input class="sinp" style="width:100%" value="Habiba Zahid"/></div>
+            <div><div class="ml">Email</div><input class="sinp" style="width:100%" value="habibaazahid@gmail.com"/></div>
+            <div><div class="ml">Role</div><input class="sinp" style="width:100%" value="Administrator"/></div>
+            <div><div class="ml">LinkedIn</div><input class="sinp" style="width:100%" value="linkedin.com/in/habibazahid03"/></div>
+            <div><div class="ml">GitHub</div><input class="sinp" style="width:100%" value="github.com/habibaazahid"/></div>
+            <div style="display:flex;gap:8px;margin-top:4px"><button class="btnp">Save Changes</button><button class="btng">Reset</button></div>
+          </div>
+          <div style="margin-top:22px;padding-top:16px;border-top:1px solid var(--b0)">
+            <div class="stit">Danger Zone</div>
+            <button class="btnd">Delete Account</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /wrap -->
+
+<!-- MODAL -->
+<div class="mwrap" id="mwrap">
+  <div class="modal">
+    <div class="mt">Create Report</div>
+    <div class="ms">Generate a custom analytics export</div>
+    <div class="ml">Report Name</div><input class="mi" placeholder="e.g. Revenue Q1 2025"/>
+    <div class="ml" style="margin-top:10px">Type</div>
+    <div class="filt" style="margin:6px 0 0"><button class="fb on">Revenue</button><button class="fb on">Traffic</button><button class="fb">Users</button><button class="fb">Conversions</button></div>
+    <div class="ml">Date</div><input class="mi" type="date"/>
+    <div class="mf"><button class="btng" onclick="closeModal()">Cancel</button><button class="btnp" onclick="closeModal()">Generate PDF</button></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ══════════════════════════════════════
+   PULSEBOARD DASHBOARD ENGINE
+   dashboard.habibazahid.com
+   Built with Chart.js + free APIs:
+   - CoinGecko (crypto, no key)
+   - Open-Meteo (weather, no key)
+   - rss2json (news feed)
+══════════════════════════════════════ */
+
+/* ── CHART.JS SETUP ── */
+Chart.defaults.color='#8899b0';
+Chart.defaults.borderColor='rgba(96,165,250,.07)';
+Chart.defaults.font.family="'JetBrains Mono',monospace";
+Chart.defaults.font.size=10;
+
+const CH={};
+function mk(id,cfg){
+  const el=document.getElementById(id);if(!el)return null;
+  if(CH[id]){try{CH[id].destroy()}catch(_){} delete CH[id];}
+  CH[id]=new Chart(el.getContext('2d'),cfg);return CH[id];
+}
+const R=(col,a)=>`rgba(${({sky:'96,165,250',mint:'52,211,153',rose:'251,113,133',em:'192,132,252',cyan:'34,211,238',amber:'251,191,36',teal:'45,212,191',violet:'167,139,250'})[col]},${a})`;
+const TT={backgroundColor:'#111f33',borderColor:'rgba(96,165,250,.22)',borderWidth:1,padding:11,titleFont:{family:"'JetBrains Mono',monospace",size:10},bodyFont:{family:"'JetBrains Mono',monospace",size:11},titleColor:'#8899b0',bodyColor:'#eef2ff'};
+
+/* ── DATA ── */
+const MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const REV=[42,51,47,63,58,72,68,84,79,91,96,112].map(v=>v*1000);
+const EXP=[28,31,29,35,32,38,36,41,39,44,46,52].map(v=>v*1000);
+const PRF=REV.map((r,i)=>r-EXP[i]);
+const VIS=[4200,5800,5100,6700,7200,4800,3900];
+const UNQ=[2800,3900,3400,4500,4900,3100,2600];
+const DY=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+/* ── THEME ── */
+let dark=true;
+document.getElementById('thbtn').addEventListener('click',()=>{
+  dark=!dark;
+  document.documentElement.setAttribute('data-theme',dark?'dark':'light');
+  document.getElementById('thbtn').textContent=dark?'🌙':'☀️';
+  document.getElementById('dtog').classList.toggle('on',dark);
+  Chart.defaults.borderColor=dark?'rgba(96,165,250,.07)':'rgba(59,130,246,.08)';
+  Chart.defaults.color=dark?'#8899b0':'#475569';
+  setTimeout(redrawAll,80);
+});
+
+/* ── SIDEBAR COLLAPSE ── */
+document.getElementById('clpbtn').addEventListener('click',()=>document.getElementById('sb').classList.toggle('mini'));
+
+/* ── CLOCK ── */
+function tick(){document.getElementById('clkdisplay').textContent=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}
+tick();setInterval(tick,1000);
+
+/* ── MODAL ── */
+function openModal(){document.getElementById('mwrap').classList.add('open')}
+function closeModal(){document.getElementById('mwrap').classList.remove('open')}
+document.getElementById('mwrap').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal()});
+
+/* ── TOGGLES ── */
+document.querySelectorAll('.tog').forEach(t=>t.addEventListener('click',()=>t.classList.toggle('on')));
+
+/* ── ROUTING ── */
+const META={
+  overview:['Overview','Real-time command center · dashboard.habibazahid.com'],
+  analytics:['Analytics','Deep data analysis · all metrics'],
+  users:['Users','User management · 24 total'],
+  revenue:['Revenue','Financial overview · MRR & ARR'],
+  crypto:['Crypto Live','CoinGecko API · 30s refresh'],
+  weather:['Weather','Open-Meteo API · no API key needed'],
+  news:['Tech News','RSS feed · TechCrunch'],
+  worldtime:['World Clocks','Live time zones · 6 cities'],
+  alerts:['Alerts','System notifications · 5 active'],
+  settings:['Settings','Dashboard preferences & subdomains'],
+};
+let cur='overview';
+const LOADERS={
+  analytics:loadAnalytics,revenue:loadRevenuePage,
+  crypto:loadCrypto,weather:loadWeather,news:loadNews,
+  worldtime:loadWorldTime,alerts:loadAlerts,users:()=>renderUsers(),
+};
+
+function go(page){
+  if(!META[page])return;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
+  document.getElementById('page-'+page).classList.add('on');
+  document.querySelector(`.nb[data-page="${page}"]`)?.classList.add('on');
+  document.getElementById('ptitle').textContent=META[page][0];
+  cur=page;
+  history.pushState({page},'','#'+page);
+  LOADERS[page]?.();
+}
+
+document.querySelectorAll('.nb[data-page]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.page)));
+window.addEventListener('popstate',e=>{const p=e.state?.page||location.hash.slice(1)||'overview';go(p)});
+const h0=location.hash.slice(1);if(h0&&META[h0])go(h0);
+
+/* ── FILTER CLICKS ── */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('.fb');if(!b)return;
+  if(b.closest('#rfilt')){b.closest('#rfilt').querySelectorAll('.fb').forEach(x=>x.classList.remove('on'));b.classList.add('on');buildRevChart(+b.dataset.rf);return;}
+  if(b.dataset.uf){b.closest('.filt').querySelectorAll('.fb[data-uf]').forEach(x=>x.classList.remove('on'));b.classList.add('on');renderUsers(b.dataset.uf);return;}
+  b.classList.toggle('on');
+});
+
+/* ── COUNTER ── */
+function count(el,target,fmt=v=>v.toLocaleString()){
+  const dur=1600;let st=null;
+  const s=ts=>{if(!st)st=ts;const p=Math.min((ts-st)/dur,1);const e=1-Math.pow(1-p,4);el.textContent=fmt(Math.round(target*e));if(p<1)requestAnimationFrame(s)};
+  requestAnimationFrame(s);
+}
+
+/* ── SPARKLINE ── */
+function spark(id,data,col){
+  mk(id,{type:'line',data:{labels:data.map((_,i)=>i),datasets:[{data,borderColor:R(col,1),borderWidth:1.5,pointRadius:0,fill:true,backgroundColor:R(col,.08),tension:.4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false}}}});
+}
+
+/* ── OVERVIEW ── */
+function initOverview(){
+  setTimeout(()=>{
+    count(document.getElementById('v-rev'),847200,v=>'$'+v.toLocaleString());
+    count(document.getElementById('v-usr'),24891);
+    count(document.getElementById('v-con'),3847);
+    document.getElementById('d-rev').textContent='↑ 12.4%';
+    document.getElementById('d-usr').textContent='↑ 8.7%';
+    document.getElementById('d-con').textContent='↑ 5.1%';
+  },150);
+  spark('sp-rev',[42,51,47,63,58,72,68,84,79,91],'sky');
+  spark('sp-usr',[180,210,195,240,228,260,250,290,275,320],'mint');
+  spark('sp-con',[320,380,350,430,410,480,460,520,500,560],'em');
+  spark('sp-upt',[99.9,99.8,99.9,100,99.9,99.9,100,99.9,100,99.98],'cyan');
+  buildRevChart(12);buildDonut();buildBars();renderFeed();renderSys();
+}
+
+function buildRevChart(n){
+  mk('c-rev',{type:'line',data:{labels:MO.slice(-n),datasets:[
+    {label:'Revenue',data:REV.slice(-n),borderColor:R('sky',1),backgroundColor:R('sky',.1),borderWidth:2.5,pointRadius:3,tension:.4,fill:true},
+    {label:'Profit',data:PRF.slice(-n),borderColor:R('mint',1),backgroundColor:R('mint',.08),borderWidth:2,pointRadius:2,tension:.4,fill:true},
+    {label:'Expenses',data:EXP.slice(-n),borderColor:R('rose',.75),backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,tension:.4,borderDash:[5,3]},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...TT,mode:'index',intersect:false,callbacks:{label:c=>` ${c.dataset.label}: $${(c.parsed.y/1000).toFixed(1)}k`}}},scales:{x:{grid:{color:R('sky',.04)}},y:{grid:{color:R('sky',.04)},ticks:{callback:v=>`$${v/1000}k`}}}}});
+}
+
+function buildDonut(){
+  mk('c-donut',{type:'doughnut',data:{labels:['Organic','Direct','Social','Email','Paid'],datasets:[{data:[38,24,20,11,7],backgroundColor:[R('sky',.85),R('em',.85),R('cyan',.85),R('mint',.85),R('amber',.85)],borderColor:'transparent',hoverOffset:8}]},options:{responsive:true,maintainAspectRatio:false,cutout:'66%',plugins:{legend:{position:'bottom',labels:{color:'#8899b0',padding:11,font:{size:10}}},tooltip:{...TT}}}});
+}
+
+function buildBars(){
+  mk('c-bars',{type:'bar',data:{labels:DY,datasets:[
+    {label:'This Week',data:VIS,backgroundColor:R('sky',.78),borderRadius:5,borderSkipped:false},
+    {label:'Last Week',data:[3800,5100,4700,5900,6400,4100,3400],backgroundColor:R('sky',.22),borderRadius:5,borderSkipped:false},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8899b0',font:{size:10}}},tooltip:{...TT,mode:'index',intersect:false}},scales:{x:{grid:{display:false}},y:{grid:{color:R('sky',.04)}}}}});
+}
+
+/* ── FEED ── */
+let feed=[
+  ['💰','New Pro subscription','3m ago','sky'],
+  ['👤','Signup — Priya Sharma (India)','14m ago','mint'],
+  ['✅','Deploy #482 completed','31m ago','mint'],
+  ['⚠️','Memory usage at 88%','48m ago','amber'],
+  ['💳','Payment retry failed #3','1h ago','rose'],
+  ['📊','Monthly report generated','2h ago','em'],
+  ['🔄','Backup completed — 4.2 GB','3h ago','cyan'],
+  ['🌍','New user — Berlin, Germany','4h ago','sky'],
+];
+const FC={sky:'rgba(96,165,250,.14)',mint:'rgba(52,211,153,.14)',rose:'rgba(251,113,133,.14)',amber:'rgba(251,191,36,.14)',em:'rgba(192,132,252,.14)',cyan:'rgba(34,211,238,.14)'};
+const FV={sky:'var(--sky)',mint:'var(--mint)',rose:'var(--rose)',amber:'var(--amber)',em:'var(--em)',cyan:'var(--cyan)'};
+function renderFeed(){
+  document.getElementById('feed').innerHTML=feed.slice(0,8).map(([ic,tx,ti,co])=>
+    `<div class="fi"><div class="fic" style="background:${FC[co]};color:${FV[co]}">${ic}</div><div><div class="fit">${tx}</div><div class="fim">${ti}</div></div></div>`
+  ).join('');
+}
+const NE=[['🔔','Alert triggered — CPU spike','just now','rose'],['💰','New Starter plan subscriber','1m ago','mint'],['👤','New user — Tokyo, Japan','2m ago','sky'],['✅','Build #483 passed','3m ago','mint'],['📊','Weekly report ready','4m ago','em']];
+let fi=0;
+setInterval(()=>{feed.unshift(NE[fi++%NE.length]);feed=feed.slice(0,8);if(cur==='overview')renderFeed();},9000);
+
+/* ── SYS STATS ── */
+function renderSys(){
+  const s=[['🖥 CPU','42%','var(--mint)'],['💾 Memory','68%','var(--amber)'],['🌐 API/hr','24.8k','var(--sky)'],['⚡ Latency','1.2ms','var(--cyan)'],['🔄 Uptime','99.98%','var(--mint)'],['📦 Build','#482','var(--em)']];
+  document.getElementById('sysstats').innerHTML=s.map(([n,v,c])=>`<div class="sr"><span class="srn">${n}</span><span class="srv" style="color:${c}">${v}</span></div>`).join('');
+}
+
+/* ── USERS ── */
+const US=[
+  {name:'Aria Chen',      em:'aria@techcorp.io',    role:'Admin',    st:'active',   rev:'$12,400',act:88,jn:'Jan 2024',g:'linear-gradient(135deg,#60a5fa,#c084fc)'},
+  {name:'Marcus Webb',    em:'m.webb@growfast.co',  role:'Manager',  st:'active',   rev:'$8,920', act:72,jn:'Mar 2024',g:'linear-gradient(135deg,#c084fc,#818cf8)'},
+  {name:'Fatima Al-Said', em:'f.alsaid@nexus.com',  role:'Designer', st:'active',   rev:'$6,750', act:65,jn:'Feb 2024',g:'linear-gradient(135deg,#f472b6,#c084fc)'},
+  {name:'Jake Thornton',  em:'jake@venture.io',     role:'Dev',      st:'inactive', rev:'$4,300', act:22,jn:'Apr 2024',g:'linear-gradient(135deg,#34d399,#38bdf8)'},
+  {name:'Priya Sharma',   em:'priya@cloudstack.in', role:'Analyst',  st:'active',   rev:'$9,100', act:91,jn:'Jan 2024',g:'linear-gradient(135deg,#fbbf24,#f472b6)'},
+  {name:'Leo Müller',     em:'leo@datastudio.de',   role:'Manager',  st:'active',   rev:'$11,200',act:84,jn:'May 2024',g:'linear-gradient(135deg,#34d399,#60a5fa)'},
+  {name:'Sofia Okafor',   em:'sofia@launchpad.ng',  role:'Dev',      st:'pending',  rev:'$3,800', act:45,jn:'Jun 2024',g:'linear-gradient(135deg,#f97316,#fbbf24)'},
+  {name:'Chen Wei',       em:'cwei@startify.cn',    role:'Dev',      st:'active',   rev:'$7,600', act:78,jn:'Feb 2024',g:'linear-gradient(135deg,#38bdf8,#818cf8)'},
+];
+const SC={active:'var(--mint)',inactive:'var(--tx2)',pending:'var(--amber)'};
+function renderUsers(f='all'){
+  const q=document.getElementById('usrsrch')?.value?.toLowerCase()||'';
+  const ls=US.filter(u=>(f==='all'||u.st===f)&&(u.name.toLowerCase().includes(q)||u.em.toLowerCase().includes(q)));
+  document.getElementById('utbody').innerHTML=ls.map(u=>{
+    const ini=u.name.split(' ').map(w=>w[0]).join('');
+    return`<tr>
+      <td><div class="uc"><div class="av" style="background:${u.g}">${ini}</div><div><div class="un">${u.name}</div><div class="ue">${u.em}</div></div></div></td>
+      <td><span class="tag" style="background:rgba(96,165,250,.1);color:var(--sky);border:1px solid rgba(96,165,250,.2)">${u.role}</span></td>
+      <td><span class="sdot"><span class="dot" style="background:${SC[u.st]};box-shadow:0 0 5px ${SC[u.st]}"></span>${u.st.charAt(0).toUpperCase()+u.st.slice(1)}</span></td>
+      <td style="color:var(--mint);font-family:var(--fm);font-weight:700">${u.rev}</td>
+      <td><div style="font-family:var(--fm);font-size:10px;color:var(--tx1);margin-bottom:2px">${u.act}%</div><div class="pbar"><div class="pfill" style="width:${u.act}%"></div></div></td>
+      <td style="font-family:var(--fm);font-size:10px;color:var(--tx2)">${u.jn}</td>
+      <td><div style="display:flex;gap:5px"><button class="btng" style="padding:3px 9px;font-size:11px">Edit</button><button class="btnd" style="padding:3px 9px;font-size:11px">Del</button></div></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('pgi').textContent=`Showing ${ls.length} of ${US.length} users`;
+}
+document.addEventListener('input',e=>{if(e.target.id==='usrsrch')renderUsers('all')});
+
+/* ── ANALYTICS ── */
+function loadAnalytics(){setTimeout(()=>{
+  mk('c-trend',{type:'line',data:{labels:MO,datasets:[{label:'Revenue',data:REV,borderColor:R('sky',1),backgroundColor:R('sky',.1),borderWidth:2.5,pointRadius:3,tension:.4,fill:true},{label:'Expenses',data:EXP,borderColor:R('rose',.8),backgroundColor:R('rose',.07),borderWidth:1.5,pointRadius:2,tension:.4,fill:true,borderDash:[5,3]},{label:'Profit',data:PRF,borderColor:R('mint',1),backgroundColor:R('mint',.1),borderWidth:2,pointRadius:2,tension:.4,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8899b0',font:{size:10}}},tooltip:{...TT,mode:'index',intersect:false,callbacks:{label:c=>` ${c.dataset.label}: $${(c.parsed.y/1000).toFixed(1)}k`}}},scales:{x:{grid:{color:R('sky',.04)}},y:{grid:{color:R('sky',.04)},ticks:{callback:v=>`$${v/1000}k`}}}}});
+  mk('c-traffic',{type:'bar',data:{labels:DY,datasets:[{label:'Visits',data:VIS,backgroundColor:R('sky',.8),borderRadius:5,borderSkipped:false},{label:'Unique',data:UNQ,backgroundColor:R('em',.8),borderRadius:5,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8899b0',font:{size:10}}},tooltip:{...TT,mode:'index',intersect:false}},scales:{x:{grid:{display:false}},y:{grid:{color:R('sky',.04)}}}}});
+  mk('c-funnel',{type:'bar',data:{labels:['Visitors','Leads','Signups','Trials','Paying'],datasets:[{label:'%',data:[100,68,42,28,18],backgroundColor:[R('sky',.85),R('em',.85),R('violet',.85),R('cyan',.85),R('mint',.85)],borderRadius:6,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{...TT}},scales:{x:{grid:{color:R('sky',.04)},max:115},y:{grid:{display:false}}}}});
+  mk('c-device',{type:'doughnut',data:{labels:['Desktop','Mobile','Tablet','Other'],datasets:[{data:[58,32,8,2],backgroundColor:[R('sky',.85),R('cyan',.85),R('mint',.85),R('amber',.85)],borderColor:'transparent',hoverOffset:8}]},options:{responsive:true,maintainAspectRatio:false,cutout:'63%',plugins:{legend:{position:'bottom',labels:{color:'#8899b0',padding:11,font:{size:10}}},tooltip:{...TT}}}});
+},50);}
+
+/* ── REVENUE PAGE ── */
+function loadRevenuePage(){setTimeout(()=>{
+  mk('c-rev2',{type:'line',data:{labels:MO,datasets:[{label:'Revenue',data:REV,borderColor:R('sky',1),backgroundColor:R('sky',.12),borderWidth:2.5,pointRadius:3,tension:.4,fill:true},{label:'Expenses',data:EXP,borderColor:R('rose',.8),backgroundColor:R('rose',.08),borderWidth:1.5,pointRadius:2,tension:.4,fill:true,borderDash:[4,3]},{label:'Profit',data:PRF,borderColor:R('mint',1),backgroundColor:R('mint',.1),borderWidth:2,pointRadius:2,tension:.4,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8899b0',font:{size:10}}},tooltip:{...TT,mode:'index',intersect:false,callbacks:{label:c=>` ${c.dataset.label}: $${(c.parsed.y/1000).toFixed(1)}k`}}},scales:{x:{grid:{color:R('sky',.04)}},y:{grid:{color:R('sky',.04)},ticks:{callback:v=>`$${v/1000}k`}}}}});
+  const t=document.getElementById('revtbl');
+  t.innerHTML=`<thead><tr>${['Month','Revenue','Expenses','Profit','Margin'].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`+MO.map((m,i)=>{const mg=((PRF[i]/REV[i])*100).toFixed(1);return`<tr><td style="font-weight:700;color:var(--tx0)">${m}</td><td style="color:var(--sky);font-family:var(--fm)">$${(REV[i]/1000).toFixed(0)}k</td><td style="color:var(--rose);font-family:var(--fm)">$${(EXP[i]/1000).toFixed(0)}k</td><td style="color:var(--mint);font-family:var(--fm);font-weight:700">$${(PRF[i]/1000).toFixed(0)}k</td><td><div style="display:flex;align-items:center;gap:7px"><div class="pbar" style="width:90px"><div class="pfill" style="width:${mg}%"></div></div><span style="font-family:var(--fm);font-size:10px;color:var(--tx1)">${mg}%</span></div></td></tr>`;}).join('')+'</tbody>';
+},50);}
+
+/* ── CRYPTO ── */
+const COINS=[{id:'bitcoin',n:'Bitcoin',s:'BTC',e:'₿'},{id:'ethereum',n:'Ethereum',s:'ETH',e:'Ξ'},{id:'solana',n:'Solana',s:'SOL',e:'◎'},{id:'binancecoin',n:'BNB',s:'BNB',e:'◆'},{id:'cardano',n:'Cardano',s:'ADA',e:'✦'},{id:'dogecoin',n:'Dogecoin',s:'DOGE',e:'Ð'},{id:'ripple',n:'XRP',s:'XRP',e:'✕'}];
+let ctTimer;
+function loadCrypto(){clearInterval(ctTimer);fetchCoins();ctTimer=setInterval(fetchCoins,30000);}
+async function fetchCoins(){
+  try{
+    const r=await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${COINS.map(c=>c.id).join(',')}&vs_currencies=usd&include_24hr_change=true`);
+    if(!r.ok)throw new Error();
+    const d=await r.json();
+    const el=document.getElementById('clist');if(!el)return;
+    el.innerHTML=COINS.map(c=>{const i=d[c.id];if(!i)return'';const p=i.usd,ch=(i.usd_24h_change||0).toFixed(2),up=ch>=0;
+      return`<div class="ci"><div class="cil" style="background:${up?'rgba(52,211,153,.12)':'rgba(251,113,133,.12)'};color:${up?'var(--mint)':'var(--rose)'}">${c.e}</div><div style="flex:1"><div class="cin">${c.n}</div><div class="cis">${c.s}</div></div><div><div class="cip">$${p.toLocaleString('en',{maximumFractionDigits:2})}</div><div class="cic" style="color:${up?'var(--mint)':'var(--rose)'}">${up?'↑':'↓'} ${Math.abs(ch)}%</div></div></div>`;
+    }).join('');
+    mk('c-cbar',{type:'bar',data:{labels:COINS.map(c=>c.s),datasets:[{label:'24h %',data:COINS.map(c=>(d[c.id]?.usd_24h_change||0).toFixed(2)),backgroundColor:COINS.map(c=>(d[c.id]?.usd_24h_change||0)>=0?R('mint',.78):R('rose',.78)),borderRadius:5,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:c=>` ${c.parsed.y}%`}}},scales:{x:{grid:{display:false}},y:{grid:{color:R('sky',.04)},ticks:{callback:v=>`${v}%`}}}}});
+    fetchBTC();
+  }catch(_){
+    const fb=[{n:'Bitcoin',s:'BTC',e:'₿',p:67420,c:2.4},{n:'Ethereum',s:'ETH',e:'Ξ',p:3180,c:1.8},{n:'Solana',s:'SOL',e:'◎',p:145,c:-1.2},{n:'BNB',s:'BNB',e:'◆',p:582,c:0.7},{n:'Cardano',s:'ADA',e:'✦',p:0.45,c:0.3},{n:'Dogecoin',s:'DOGE',e:'Ð',p:0.14,c:-0.8},{n:'XRP',s:'XRP',e:'✕',p:0.58,c:1.1}];
+    document.getElementById('clist').innerHTML=fb.map(c=>`<div class="ci"><div class="cil" style="background:${c.c>=0?'rgba(52,211,153,.12)':'rgba(251,113,133,.12)'};color:${c.c>=0?'var(--mint)':'var(--rose)'}">${c.e}</div><div style="flex:1"><div class="cin">${c.n}</div><div class="cis">${c.s}</div></div><div><div class="cip">$${c.p.toLocaleString()}</div><div class="cic" style="color:${c.c>=0?'var(--mint)':'var(--rose)'}">${c.c>=0?'↑':'↓'} ${Math.abs(c.c)}%</div></div></div>`).join('');
+    mk('c-cbar',{type:'bar',data:{labels:fb.map(c=>c.s),datasets:[{label:'24h %',data:fb.map(c=>c.c),backgroundColor:fb.map(c=>c.c>=0?R('mint',.78):R('rose',.78)),borderRadius:5,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...TT}},scales:{x:{grid:{display:false}},y:{grid:{color:R('sky',.04)},ticks:{callback:v=>`${v}%`}}}}});
+    fetchBTC();
+  }
+}
+async function fetchBTC(){
+  try{
+    const r=await fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=7&interval=daily');
+    if(!r.ok)throw new Error();
+    const d=await r.json();
+    const prices=d.prices.map(p=>p[1]),labels=d.prices.map(p=>new Date(p[0]).toLocaleDateString('en',{month:'short',day:'numeric'}));
+    mk('c-btc',{type:'line',data:{labels,datasets:[{label:'BTC/USD',data:prices,borderColor:R('amber',1),backgroundColor:R('amber',.1),borderWidth:2.5,pointRadius:4,tension:.4,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:c=>` BTC: $${c.parsed.y.toLocaleString('en',{maximumFractionDigits:0})}`}}},scales:{x:{grid:{color:R('sky',.04)}},y:{grid:{color:R('sky',.04)},ticks:{callback:v=>`$${(v/1000).toFixed(0)}k`}}}}});
+  }catch(_){mk('c-btc',{type:'line',data:{labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],datasets:[{label:'BTC/USD',data:[61000,63200,65800,64100,66900,67200,67420],borderColor:R('amber',1),backgroundColor:R('amber',.1),borderWidth:2.5,pointRadius:4,tension:.4,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...TT}},scales:{x:{grid:{color:R('sky',.04)}},y:{grid:{color:R('sky',.04)},ticks:{callback:v=>`$${(v/1000).toFixed(0)}k`}}}}});}
+}
+
+/* ── WEATHER (Open-Meteo — free, no API key) ── */
+const WI={0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',51:'🌦',61:'🌧',71:'❄️',80:'🌧',95:'⛈'};
+const WD={0:'Clear Sky',1:'Mainly Clear',2:'Partly Cloudy',3:'Overcast',45:'Foggy',51:'Light Drizzle',61:'Rainy',71:'Snow',80:'Showers',95:'Thunderstorm'};
+async function loadWeather(){
+  try{
+    const lat=32.08,lon=72.67;
+    document.getElementById('wloc').textContent='📍 Sargodha, Pakistan';
+    const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&daily=temperature_2m_max,temperature_2m_min,weathercode&hourly=relativehumidity_2m,windspeed_10m&timezone=Asia%2FKarachi&forecast_days=5`);
+    const d=await r.json();const cur=d.current_weather;
+    document.getElementById('wmain').innerHTML=`<div style="display:flex;align-items:center;gap:18px;margin:12px 0"><span style="font-size:3.5rem">${WI[cur.weathercode]||'🌡'}</span><div><div style="font-size:2.8rem;font-weight:800;letter-spacing:-3px;line-height:1;color:var(--tx0)">${Math.round(cur.temperature)}°C</div><div style="font-size:13px;color:var(--tx1);margin-top:3px">${WD[cur.weathercode]||'—'}</div></div></div><div class="wds"><div class="wd"><div class="wdl">Humidity</div><div class="wdv">${d.hourly.relativehumidity_2m[0]}%</div></div><div class="wd"><div class="wdl">Wind</div><div class="wdv">${cur.windspeed} km/h</div></div><div class="wd"><div class="wdl">Lat</div><div class="wdv">${lat}°N</div></div><div class="wd"><div class="wdl">Lon</div><div class="wdv">${lon}°E</div></div></div>`;
+    const fd=d.daily;
+    mk('c-fcast',{type:'line',data:{labels:fd.time.map(t=>new Date(t).toLocaleDateString('en',{weekday:'short'})),datasets:[{label:'High °C',data:fd.temperature_2m_max,borderColor:R('amber',1),backgroundColor:R('amber',.12),borderWidth:2.5,pointRadius:5,tension:.4,fill:true},{label:'Low °C',data:fd.temperature_2m_min,borderColor:R('sky',1),backgroundColor:R('sky',.1),borderWidth:2,pointRadius:4,tension:.4,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8899b0',font:{size:10}}},tooltip:{...TT,callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y.toFixed(1)}°C`}}},scales:{x:{grid:{display:false}},y:{grid:{color:R('sky',.04)},ticks:{callback:v=>`${v}°`}}}}});
+  }catch(_){document.getElementById('wmain').innerHTML='<div style="color:var(--tx2);padding:20px;text-align:center">⚠ Unable to fetch weather data</div>';}
+  renderWCG();
+}
+const CITIES=[{n:'Karachi',tz:'Asia/Karachi',f:'🇵🇰'},{n:'New York',tz:'America/New_York',f:'🇺🇸'},{n:'London',tz:'Europe/London',f:'🇬🇧'},{n:'Berlin',tz:'Europe/Berlin',f:'🇩🇪'},{n:'Dubai',tz:'Asia/Dubai',f:'🇦🇪'},{n:'Tokyo',tz:'Asia/Tokyo',f:'🇯🇵'}];
+function renderWCG(){
+  const el=document.getElementById('wclocks');if(!el)return;
+  el.innerHTML=CITIES.map(c=>{const t=new Date().toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',timeZone:c.tz});return`<div class="card" style="padding:12px;text-align:center"><div style="font-size:1.5rem">${c.f}</div><div style="font-size:11.5px;font-weight:600;color:var(--tx0);margin:4px 0">${c.n}</div><div style="font-family:var(--fm);font-size:14px;font-weight:700;color:var(--sky)">${t}</div></div>`;}).join('');
+}
+
+/* ── NEWS ── */
+async function loadNews(){
+  const tr=['AI Coding Agents','React 19 Stable','Next.js 15','MERN 2025','TypeScript 5.5','Vercel Edge','Node.js 22 LTS','CSS Anchor API'];
+  document.getElementById('tlist').innerHTML=tr.map((t,i)=>`<div class="sr" style="cursor:pointer" onmouseover="this.querySelector('.srn').style.color='var(--sky)'" onmouseout="this.querySelector('.srn').style.color=''"><span class="srn" style="transition:color .15s"><span style="font-family:var(--fm);font-size:10px;color:var(--tx2);margin-right:7px">#${i+1}</span>${t}</span><span style="font-family:var(--fm);font-size:10px;color:var(--tx2)">${(Math.random()*9+1).toFixed(1)}k</span></div>`).join('');
+  try{
+    const r=await fetch('https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Ffeeds.feedburner.com%2FTechCrunch&count=8');
+    const d=await r.json();
+    if(d.items?.length){document.getElementById('nlist').innerHTML=d.items.map(item=>`<div class="ni" onclick="window.open('${item.link}','_blank')"><div class="nis">TechCrunch</div><div class="nit">${item.title}</div><div class="nitm">${new Date(item.pubDate).toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'})}</div></div>`).join('');return;}
+  }catch(_){}
+  const fl=[{s:'Vercel',t:'Next.js 15 GA — Turbopack stable, partial prerendering'},{s:'React',t:'React 19 Release: Server Actions & React Compiler'},{s:'Node.js',t:'Node.js 22 LTS — V8 12.4, require(ESM), WebSocket'},{s:'GitHub',t:'Copilot multi-model: Claude 3.5 + Gemini 1.5 Pro'},{s:'Dev.to',t:'Production MERN Stack apps in 2025 — full guide'},{s:'CSS-Tricks',t:'CSS Anchor Positioning — no more JS tooltips'},{s:'JS Weekly',t:'TypeScript 5.5 — inferred type predicates'},{s:'Smashing',t:'Design systems 2025: tokens, multi-brand & AI'}];
+  document.getElementById('nlist').innerHTML=fl.map(n=>`<div class="ni"><div class="nis">${n.s}</div><div class="nit">${n.t}</div><div class="nitm">Recently published</div></div>`).join('');
+}
+
+/* ── WORLD TIME ── */
+let wtInt;
+function loadWorldTime(){
+  clearInterval(wtInt);
+  drawWT();wtInt=setInterval(drawWT,1000);
+  mk('c-tz',{type:'bar',data:{labels:CITIES.map(c=>c.n),datasets:[{label:'UTC Offset',data:[5,-5,0,1,4,9],backgroundColor:CITIES.map((_,i)=>[R('sky',.82),R('em',.82),R('cyan',.82),R('mint',.82),R('amber',.82),R('rose',.82)][i]),borderRadius:6,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:c=>` UTC${c.parsed.y>=0?'+':''}${c.parsed.y}`}}},scales:{x:{grid:{display:false}},y:{grid:{color:R('sky',.04)},ticks:{callback:v=>`UTC${v>=0?'+':''}${v}`}}}}});
+}
+function drawWT(){
+  const el=document.getElementById('wtlist');if(!el)return;
+  const now=new Date();
+  el.innerHTML=CITIES.map(c=>{const t=now.toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:c.tz});const dt=now.toLocaleDateString('en',{weekday:'short',month:'short',day:'numeric',timeZone:c.tz});return`<div class="wt"><div class="wtc">${c.f} ${c.n}</div><div><div class="wtt">${t}</div><div class="wtd">${dt}</div></div></div>`;}).join('');
+}
+
+/* ── ALERTS ── */
+function loadAlerts(){
+  const als=[{t:'danger',i:'🔴',h:'Critical: API Error Rate 18%',m:'The /api/payments endpoint returning HTTP 500 errors. Investigate immediately.',ts:'5m ago'},{t:'warn',i:'🟡',h:'Warning: Memory at 88%',m:'Server RAM approaching capacity. Consider scaling.',ts:'22m ago'},{t:'danger',i:'🔴',h:'Critical: Payment Retry Failed ×3',m:'3 consecutive failed charges for user #4481.',ts:'1h ago'},{t:'info',i:'🔵',h:'Maintenance Tonight 2–4 AM PKT',m:'Database migration window. Dashboard read-only.',ts:'2h ago'},{t:'success',i:'🟢',h:'Deploy #482 Successful',m:'Zero-downtime deploy. All 12 instances healthy.',ts:'3h ago'},{t:'info',i:'🔵',h:'Milestone: 25,000 Signups!',m:'Platform has reached 25k registered users.',ts:'5h ago'},{t:'success',i:'🟢',h:'SSL Certificate Renewed',m:'TLS cert for dashboard.habibazahid.com — 90 days.',ts:'1d ago'},{t:'success',i:'🟢',h:'Daily Backup Done',m:'4.2 GB snapshot stored to S3. Retention 30 days.',ts:'1d ago'}];
+  document.getElementById('alist').innerHTML=als.map(a=>`<div class="al ${a.t}"><div class="ali">${a.i}</div><div><div class="alt">${a.h}</div><div class="alm">${a.m}</div><div class="altime">${a.ts}</div></div></div>`).join('');
+  mk('c-alrt',{type:'doughnut',data:{labels:['Critical','Warning','Info','Resolved'],datasets:[{data:[2,1,2,3],backgroundColor:[R('rose',.85),R('amber',.85),R('sky',.85),R('mint',.85)],borderColor:'transparent',hoverOffset:8}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom',labels:{color:'#8899b0',padding:11,font:{size:10}}},tooltip:{...TT}}}});
+}
+
+/* ── TICKER ── */
+const TICKS=[['BTC','$67,420','↑ 2.4%','u'],['ETH','$3,180','↑ 1.8%','u'],['SOL','$145','↓ 1.2%','d'],['AAPL','$189','↑ 0.8%','u'],['MSFT','$421','↑ 1.1%','u'],['TSLA','$248','↓ 0.4%','d'],['NVDA','$876','↑ 3.2%','u'],['USD/PKR','277.8','↓ 0.2%','d'],['EUR','$1.085','↑ 0.1%','u'],['DAU','24,891','↑ 8.7%','u'],['MRR','$91.2k','↑ 14%','u'],['UPTIME','99.98%','✓','u']];
+function buildTicker(){const dbl=[...TICKS,...TICKS];document.getElementById('ticker-inner').innerHTML=dbl.map(([s,v,c,d])=>`<div class="ti"><span class="ti-s">${s}</span><span class="ti-v">${v}</span><span class="ti-${d==='u'?'u':'d'}">${c}</span></div>`).join('');}
+
+/* ── REDRAW ALL ── */
+function redrawAll(){
+  if(cur==='overview'){buildRevChart(12);buildDonut();buildBars();}
+  if(cur==='analytics')loadAnalytics();
+  if(cur==='revenue')loadRevenuePage();
+  if(cur==='crypto')fetchCoins();
+  if(cur==='worldtime'){loadWorldTime();}
+  if(cur==='alerts')loadAlerts();
+}
+
+/* ── KEYBOARD ── */
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==='k'){e.preventDefault();document.getElementById('gsrch').focus();}
+  if(e.key==='Escape')closeModal();
+  if((e.ctrlKey||e.metaKey)&&!isNaN(e.key)&&+e.key>=1){const ps=['overview','analytics','users','revenue','crypto','weather','news','worldtime','alerts','settings'];const p=ps[+e.key-1];if(p)go(p);}
+});
+
+/* ── BOOT ── */
+buildTicker();initOverview();renderUsers();
+</script>
+</body>
+</html>
